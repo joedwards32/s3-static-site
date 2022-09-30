@@ -18,23 +18,6 @@ variable "subject_alt_names" {
   type        = list
 }
 
-variable "routing_rules" {
-  description = "A json array containing routing rules describing redirect behavior and when redirects are applied"
-  type        = string
-
-  default = <<EOF
-[{
-    "Condition": {
-        "KeyPrefixEquals": "/"
-    },
-    "Redirect": {
-        "ReplaceKeyWith": "index.html"
-    }
-}]
-EOF
-
-}
-
 variable "cf_default_ttl" {
   description = "CloudFront default TTL for cachine"
   type        = string

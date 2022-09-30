@@ -7,24 +7,10 @@ locals {
 }
 
 # Create S3 bucket
-data "template_file" "bucket_policy" {
-  template = file("${path.module}/templates/bucket_policy.json")
-
-  vars = {
-    bucket_name = local.site_fqdn
-  }
-}
-
 resource "aws_s3_bucket" "site" {
   bucket = local.site_fqdn
-  acl    = "public-read"
+  acl    = "private"
   force_destroy = true
-  policy = data.template_file.bucket_policy.rendered
-  website {
-    index_document = "index.html"
-    error_document = "404.html"
-    routing_rules = var.routing_rules
-  }
 }
 
 # Build a list of site files
@@ -103,22 +89,23 @@ resource "aws_acm_certificate_validation" "site" {
 
 # CloudFront
 
+resource "aws_cloudfront_origin_access_identity" "default" {
+  comment = local.origin_id
+}
+
 resource "aws_cloudfront_distribution" "site" {
   count      = 1
   depends_on = [aws_s3_bucket.site]
 
   origin {
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
-
-    domain_name = aws_s3_bucket.site.website_endpoint
+    domain_name = aws_s3_bucket.site.bucket_regional_domain_name
 
     origin_id   = local.origin_id
     origin_path = ""
+
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.default.cloudfront_access_identity_path
+    }
   }
 
   dynamic "custom_error_response" {
@@ -170,6 +157,24 @@ resource "aws_cloudfront_distribution" "site" {
       restriction_type = "none"
     }
   }
+}
+
+# Grant Cloudfront acccess to S3 bucket
+data "aws_iam_policy_document" "site" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.site.arn}/*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [aws_cloudfront_origin_access_identity.default.iam_arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "site" {
+  bucket = aws_s3_bucket.site.id
+  policy = data.aws_iam_policy_document.site.json
 }
 
 # DNS Records
