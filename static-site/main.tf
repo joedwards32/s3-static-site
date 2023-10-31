@@ -134,6 +134,16 @@ resource "aws_cloudfront_distribution" "site" {
       cookies {
         forward = "none"
       }
+
+    }
+
+    dynamic "lambda_function_association" {
+      for_each = var.lambda_function_association
+      content {
+        event_type   = lambda_function_association.value.event_type
+        include_body = lookup(lambda_function_association.value, "include_body", null)
+        lambda_arn   = lambda_function_association.value.lambda_arn
+      }
     }
 
     viewer_protocol_policy = "redirect-to-https"

@@ -51,3 +51,14 @@ variable "custom_error_response" {
   }))
   default = []
 }
+
+variable "lambda_function_association" {
+  type = list(object({
+    event_type   = string
+    include_body = bool
+    lambda_arn   = string
+  }))
+
+  description = "A config block that triggers a lambda@edge function with specific actions"
+  default     = []
+}
